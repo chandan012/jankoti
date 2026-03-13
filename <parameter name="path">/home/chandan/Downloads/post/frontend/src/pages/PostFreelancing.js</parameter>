@@ -1,0 +1,306 @@
+<parameter name="content">
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+
+const PostFreelancing = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    companyName: '',
+    email: '',
+    projectType: 'fixed-price',
+    skills: '',
+    experience: 'mid',
+    rateMin: '',
+    rateMax: '',
+    rateType: 'hourly',
+    location: '',
+    details: '',
+    deadline: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(s => s);
+      
+      const formattedDescription = `Freelance Project: ${formData.title}
+${formData.description}
+
+Project Details:
+- Type: ${formData.projectType}
+- Experience Level: ${formData.experience}
+- ${formData.rateMin || formData.rateMax ? `Rate: ${formData.rateMin ? '$' + formData.rateMin : ''} ${formData.rateMax ? '- $' + formData.rateMax : ''} ${formData.rateType}` : 'Negotiable'}
+- Location: ${formData.location || 'Remote'}
+${formData.deadline ? `- Deadline: ${formData.deadline}` : ''}
+
+${formData.details ? `Additional Details:\n${formData.details}` : ''}
+
+Interested? Contact: ${formData.email}`;
+
+      const response = await axios.post('http://localhost:5000/api/freelancing', {
+        title: formData.title,
+        description: formattedDescription,
+        companyName: formData.companyName,
+        email: formData.email,
+        projectType: formData.projectType,
+        skills: skillsArray,
+        experience: formData.experience,
+        rate: {
+          min: formData.rateMin ? parseFloat(formData.rateMin) : undefined,
+          max: formData.rateMax ? parseFloat(formData.rateMax) : undefined,
+          rateType: formData.rateType
+        },
+        location: formData.location,
+        details: formData.details,
+        deadline: formData.deadline ? new Date(formData.deadline) : undefined
+      });
+
+      if (response.status === 201) {
+        setSuccess('Freelancing project posted successfully!');
+        setTimeout(() => {
+          navigate('/freelancing-view');
+        }, 2000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to post project. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <h2 className="auth-title">Please Login</h2>
+          <p className="auth-subtitle">You need to be logged in to post a freelancing project.</p>
+          <p style={{ textAlign: 'center', marginTop: '20px' }}>
+            <Link to="/login" className="btn btn-primary" style={{ marginRight: '10px' }}>Login</Link>
+            <Link to="/register" className="btn btn-outline">Sign Up</Link>
+          </p>
+        </div>
+    );
+  }
+
+  return (
+    <div className="post-job-page">
+      <div className="container" style={{ padding: '40px 20px', maxWidth: '800px' }}>
+        <div className="job-detail-card">
+          <div className="job-detail-header" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <h1 className="job-detail-title">Post a Freelance Project</h1>
+            <p style={{ opacity: 0.9 }}>Fill in the details below to create your project posting</p>
+          </div>
+
+          <div className="job-detail-body">
+            {error && <div className="alert alert-danger">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label className="form-label">Project Title *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g., Build a React E-commerce Website"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Company/Client Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g., Acme Corp"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Contact Email *</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="e.g., contact@company.com"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Project Type *</label>
+                  <select
+                    className="form-control"
+                    name="projectType"
+                    value={formData.projectType}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="one-time">One-time Project</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="hourly">Hourly Rate</option>
+                    <option value="fixed-price">Fixed Price</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Experience Level *</label>
+                  <select
+                    className="form-control"
+                    name="experience"
+                    value={formData.experience}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="entry">Entry Level</option>
+                    <option value="mid">Mid Level</option>
+                    <option value="senior">Senior Level</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </div>
+
+              <div className="form-group">
+                <label className="form-label">Budget/Rate</label>
+                <div className="form-row" style={{ gap: '10px' }}>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Min"
+                    name="rateMin"
+                    value={formData.rateMin}
+                    onChange={handleChange}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Max"
+                    name="rateMax"
+                    value={formData.rateMax}
+                    onChange={handleChange}
+                    style={{ flex: 1 }}
+                  />
+                  <select
+                    className="form-control"
+                    name="rateType"
+                    value={formData.rateType}
+                    onChange={handleChange}
+                    style={{ width: '120px' }}
+                  >
+                    <option value="hourly">/hour</option>
+                    <option value="monthly">/month</option>
+                    <option value="total">total</option>
+                  </select>
+                </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Location</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g., Remote, NYC, etc."
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Deadline</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    name="deadline"
+                    value={formData.deadline}
+                    onChange={handleChange}
+                  />
+                </div>
+
+              <div className="form-group">
+                <label className="form-label">Required Skills (comma separated)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g., React, Node.js, MongoDB, TypeScript"
+                  name="skills"
+                  value={formData.skills}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Project Description *</label>
+                <textarea
+                  className="form-control"
+                  placeholder="Describe the project requirements, deliverables, and expectations..."
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  required
+                  style={{ minHeight: '120px' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Additional Details</label>
+                <textarea
+                  className="form-control"
+                  placeholder="Any additional information about the project..."
+                  name="details"
+                  value={formData.details}
+                  onChange={handleChange}
+                  style={{ minHeight: '80px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigate('/freelancing-view')}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  style={{ flex: 1 }}
+                >
+                  {loading ? 'Posting...' : 'Submit and Post Project'}
+                </button>
+              </div>
+            </form>
+          </div>
+      </div>
+  );
+};
+
+export default PostFreelancing;
+</parameter>

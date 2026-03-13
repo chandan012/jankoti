@@ -1,0 +1,261 @@
+<parameter name="content">import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+
+const PostPodcast = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    podcastName: '',
+    hostFirstName: '',
+    ownerFirstName: '',
+    email: '',
+    contact: '',
+    episodeLink: '',
+    platform: 'other',
+    details: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const formattedDescription = `Podcast: ${formData.podcastName}
+${formData.description}
+
+Podcast Details:
+- Host: ${formData.hostFirstName}
+${formData.ownerFirstName ? `- Owner: ${formData.ownerFirstName}` : ''}
+- Platform: ${formData.platform}
+${formData.episodeLink ? `- Episode Link: ${formData.episodeLink}` : ''}
+${formData.contact ? `- Contact: ${formData.contact}` : ''}
+
+${formData.details ? `Additional Information:\n${formData.details}` : ''}
+
+Interested in appearing as a guest? Contact: ${formData.email}`;
+
+      const response = await axios.post('http://localhost:5000/api/podcast', {
+        title: formData.title,
+        description: formattedDescription,
+        podcastName: formData.podcastName,
+        hostFirstName: formData.hostFirstName,
+        ownerFirstName: formData.ownerFirstName,
+        email: formData.email,
+        contact: formData.contact,
+        episodeLink: formData.episodeLink,
+        platform: formData.platform,
+        details: formData.details
+      });
+
+      if (response.status === 201) {
+        setSuccess('Podcast listed successfully!');
+        setTimeout(() => {
+          navigate('/podcast-view');
+        }, 2000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to list podcast. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <h2 className="auth-title">Please Login</h2>
+          <p className="auth-subtitle">You need to be logged in to list a podcast.</p>
+          <p style={{ textAlign: 'center', marginTop: '20px' }}>
+            <Link to="/login" className="btn btn-primary" style={{ marginRight: '10px' }}>Login</Link>
+            <Link to="/register" className="btn btn-outline">Sign Up</Link>
+          </p>
+        </div>
+    );
+  }
+
+  return (
+    <div className="post-job-page">
+      <div className="container" style={{ padding: '40px 20px', maxWidth: '800px' }}>
+        <div className="job-detail-card">
+          <div className="job-detail-header" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
+            <h1 className="job-detail-title">List Your Podcast</h1>
+            <p style={{ opacity: 0.9 }}>Invite guests and promote your podcast</p>
+          </div>
+
+          <div className="job-detail-body">
+            {error && <div className="alert alert-danger">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label className="form-label">Listing Title *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g., Looking for Tech Founders to Interview"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Podcast Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g., The Tech Startup Show"
+                    name="podcastName"
+                    value={formData.podcastName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Host Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="First name of the host"
+                    name="hostFirstName"
+                    value={formData.hostFirstName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Owner Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="First name of the owner"
+                    name="ownerFirstName"
+                    value={formData.ownerFirstName}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Platform *</label>
+                  <select
+                    className="form-control"
+                    name="platform"
+                    value={formData.platform}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="spotify">Spotify</option>
+                    <option value="apple-podcast">Apple Podcasts</option>
+                    <option value="google-podcast">Google Podcasts</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="amazon-music">Amazon Music</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Contact Email *</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="e.g., host@podcast.com"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Contact Phone</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Phone number for inquiries"
+                    name="contact"
+                    value={formData.contact}
+                    onChange={handleChange}
+                  />
+                </div>
+
+              <div className="form-group">
+                <label className="form-label">Episode/Guest Application Link</label>
+                <input
+                  type="url"
+                  className="form-control"
+                  placeholder="https://anchor.fm/yourpodcast/guest"
+                  name="episodeLink"
+                  value={formData.episodeLink}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Podcast Description *</label>
+                <textarea
+                  className="form-control"
+                  placeholder="Describe your podcast, what topics you cover, and what you're looking for in guests..."
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  required
+                  style={{ minHeight: '120px' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Additional Information</label>
+                <textarea
+                  className="form-control"
+                  placeholder="Any additional details about your podcast, format, audience, etc..."
+                  name="details"
+                  value={formData.details}
+                  onChange={handleChange}
+                  style={{ minHeight: '80px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigate('/podcast-view')}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  style={{ flex: 1 }}
+                >
+                  {loading ? 'Listing...' : 'Submit and List Podcast'}
+                </button>
+              </div>
+            </form>
+          </div>
+      </div>
+  );
+};
+
+export default PostPodcast;
+</parameter>
