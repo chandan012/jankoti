@@ -143,7 +143,7 @@ const StartupView = () => {
             onClick={() => navigate('/post-startup')}
             style={{ padding: '12px 30px' }}
           >
-            + Post a New Opportunity
+            + List New Startup
           </button>
         )}
       </section>

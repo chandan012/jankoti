@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const User = require('../models/User');
 const { auth, normalizeRole, isAdminEmail } = require('../middleware/auth');
-const { sendRegistrationConfirmation, sendAdminAlert } = require('../services/emailService');
+const { sendAdminAlert } = require('../services/emailService');
 
 const ALLOWED_ROLES = ['candidate', 'organization'];
 const normalizeRedirect = (redirect) => {
@@ -99,9 +99,6 @@ passport.use(new GoogleStrategy({
         company
       });
 
-      sendRegistrationConfirmation({ to: user.email, name: user.name })
-        .catch((err) => console.warn('Registration email failed:', err.message));
-
       sendAdminAlert({
         subject: 'New user registration (Google)',
         text: `A new user registered via Google OAuth.\n\nName: ${user.name}\nEmail: ${user.email}\nRole: ${user.role}\n`
@@ -163,9 +160,6 @@ router.post('/register', async (req, res) => {
       role: isAdmin ? 'admin' : normalizedRole,
       company: normalizedRole === 'organization' ? company : undefined
     });
-
-    sendRegistrationConfirmation({ to: user.email, name: user.name })
-      .catch((err) => console.warn('Registration email failed:', err.message));
 
     sendAdminAlert({
       subject: 'New user registration',

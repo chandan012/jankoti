@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -6,12 +6,17 @@ import { useAuth } from '../context/AuthContext';
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const PostClassified = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [imageFile, setImageFile] = useState(null);
+  const [otp, setOtp] = useState('');
+  const [otpStatus, setOtpStatus] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   const [formData, setFormData] = useState({
     description: '',
@@ -24,6 +29,15 @@ const PostClassified = () => {
     sellerEmail: '',
     sellerContact: ''
   });
+
+  useEffect(() => {
+    if (user?.email) {
+      setFormData(prev => ({ ...prev, sellerEmail: user.email }));
+      setEmailVerified(false);
+      setOtp('');
+      setOtpStatus('');
+    }
+  }, [user?.email]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -42,6 +56,33 @@ const PostClassified = () => {
     setLoading(true);
 
     try {
+      if (!emailVerified) {
+        setError('Please verify your email with OTP before posting.');
+        setLoading(false);
+        return;
+      }
+      const normalizedContact = formData.sellerContact.replace(/\D/g, '');
+      if (!formData.price) {
+        setError('Price is required.');
+        setLoading(false);
+        return;
+      }
+      if (!formData.sellerName.trim()) {
+        setError('Seller name is required.');
+        setLoading(false);
+        return;
+      }
+      if (!formData.sellerEmail.trim()) {
+        setError('Seller email is required.');
+        setLoading(false);
+        return;
+      }
+      if (!/^\d{10}$/.test(normalizedContact)) {
+        setError('Mobile number must be 10 digits.');
+        setLoading(false);
+        return;
+      }
+
       const formattedDescription = `Item: ${formData.itemName}
 ${formData.description}
 
@@ -64,7 +105,7 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
       payload.append('location', formData.location);
       payload.append('sellerName', formData.sellerName);
       payload.append('sellerEmail', formData.sellerEmail);
-      payload.append('sellerContact', formData.sellerContact);
+      payload.append('sellerContact', normalizedContact);
       if (imageFile) {
         payload.append('image', imageFile);
       }
@@ -83,6 +124,51 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
       setError(err.response?.data?.message || 'Failed to list classified. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setOtpStatus('');
+    setError('');
+    if (!formData.sellerEmail) {
+      setOtpStatus('Email is required for OTP verification.');
+      return;
+    }
+    try {
+      setOtpSending(true);
+      await axios.post(`${API_URL}/classified/email-otp`, {
+        email: formData.sellerEmail
+      });
+      setOtpStatus('OTP sent to your email.');
+    } catch (err) {
+      setOtpStatus(err.response?.data?.message || 'Failed to send OTP.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setOtpStatus('');
+    setError('');
+    if (!otp.trim()) {
+      setOtpStatus('OTP is required.');
+      return;
+    }
+    try {
+      setOtpVerifying(true);
+      const response = await axios.post(`${API_URL}/classified/email-otp/verify`, {
+        email: formData.sellerEmail,
+        otp: otp.trim()
+      });
+      if (response.data?.verified) {
+        setEmailVerified(true);
+        setOtpStatus('Email verified successfully.');
+      }
+    } catch (err) {
+      setOtpStatus(err.response?.data?.message || 'Failed to verify OTP.');
+      setEmailVerified(false);
+    } finally {
+      setOtpVerifying(false);
     }
   };
 
@@ -138,6 +224,7 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
                     name="price"
                     value={formData.price}
                     onChange={handleChange}
+                    required
                   />
                 </div>
                 <div className="form-group">
@@ -182,7 +269,7 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Seller Name</label>
+                  <label className="form-label">Seller Name *</label>
                   <input
                     type="text"
                     className="form-control"
@@ -190,6 +277,7 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
                     name="sellerName"
                     value={formData.sellerName}
                     onChange={handleChange}
+                    required
                   />
                 </div>
                 <div className="form-group">
@@ -200,22 +288,61 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
                     placeholder="your@email.com"
                     name="sellerEmail"
                     value={formData.sellerEmail}
-                    onChange={handleChange}
+                    readOnly
+                    required
                   />
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={handleSendOtp}
+                      disabled={otpSending}
+                    >
+                      {otpSending ? 'Sending OTP...' : 'Send OTP'}
+                    </button>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter OTP"
+                      value={otp}
+                      onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                      style={{ maxWidth: '160px' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={handleVerifyOtp}
+                      disabled={otpVerifying}
+                    >
+                      {otpVerifying ? 'Verifying...' : 'Verify OTP'}
+                    </button>
+                  </div>
+                  {otpStatus && (
+                    <div
+                      className={`alert ${emailVerified ? 'alert-success' : 'alert-warning'}`}
+                      style={{ marginTop: '10px' }}
+                    >
+                      {otpStatus}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Seller Contact</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Phone number"
-                  name="sellerContact"
-                  value={formData.sellerContact}
-                  onChange={handleChange}
-                />
-              </div>
+                  <label className="form-label">Seller Contact *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Phone number"
+                    name="sellerContact"
+                    value={formData.sellerContact}
+                    onChange={(event) => {
+                      const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData(prev => ({ ...prev, sellerContact: digitsOnly }));
+                    }}
+                    required
+                  />
+                </div>
 
               <div className="form-group">
                 <label className="form-label">Item Description *</label>

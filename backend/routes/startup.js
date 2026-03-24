@@ -81,12 +81,26 @@ router.get('/:id', async (req, res) => {
 // Create new startup posting
 router.post('/', auth, requireOrganization, uploadStartupImages, async (req, res) => {
   try {
+    const founderName = (req.body.founderName || '').trim();
+    const contactNumberRaw = (req.body.contactNumber || '').trim();
+    const contactNumber = contactNumberRaw.replace(/\D/g, '');
+
+    if (!founderName) {
+      return res.status(400).json({ message: 'Founder name is required.' });
+    }
+
+    if (!/^\d{10}$/.test(contactNumber)) {
+      return res.status(400).json({ message: 'Contact number must be 10 digits.' });
+    }
+
     const normalizedSocialLinks = parseJson(req.body.socialLinks);
     const logoFile = req.files?.logo?.[0] || req.files?.image?.[0];
     const founderFile = req.files?.founderImage?.[0];
     const coFounderFile = req.files?.coFounderImage?.[0];
     const startup = new Startup({
       ...req.body,
+      founderName,
+      contactNumber,
       logoUrl: logoFile?.path || req.body.logoUrl || '',
       logoPublicId: logoFile?.filename || '',
       founderImageUrl: founderFile?.path || req.body.founderImageUrl || '',
@@ -125,6 +139,22 @@ router.put('/:id', auth, requireOrganization, uploadStartupImages, async (req, r
     }
     
     const updateData = { ...req.body, updatedAt: Date.now() };
+
+    if (typeof req.body.founderName !== 'undefined') {
+      const founderName = String(req.body.founderName || '').trim();
+      if (!founderName) {
+        return res.status(400).json({ message: 'Founder name is required.' });
+      }
+      updateData.founderName = founderName;
+    }
+
+    if (typeof req.body.contactNumber !== 'undefined') {
+      const normalizedContact = String(req.body.contactNumber || '').trim().replace(/\D/g, '');
+      if (!/^\d{10}$/.test(normalizedContact)) {
+        return res.status(400).json({ message: 'Contact number must be 10 digits.' });
+      }
+      updateData.contactNumber = normalizedContact;
+    }
 
     if (typeof req.body.socialLinks !== 'undefined') {
       const normalizedSocialLinks = parseJson(req.body.socialLinks);

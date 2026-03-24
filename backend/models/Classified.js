@@ -24,7 +24,8 @@ const classifiedSchema = new mongoose.Schema({
     default: ''
   },
   price: {
-    type: Number
+    type: Number,
+    required: true
   },
   currency: {
     type: String,
@@ -41,15 +42,36 @@ const classifiedSchema = new mongoose.Schema({
   },
   sellerName: {
     type: String,
-    trim: true
+    trim: true,
+    required: true
   },
   sellerEmail: {
     type: String,
-    trim: true
+    trim: true,
+    required: true
   },
   sellerContact: {
     type: String,
-    trim: true
+    trim: true,
+    required: true
+  },
+  verification: {
+    email: {
+      status: {
+        type: String,
+        enum: ['unverified', 'pending', 'verified'],
+        default: 'unverified'
+      },
+      verifiedAt: { type: Date }
+    },
+    phone: {
+      status: {
+        type: String,
+        enum: ['unverified', 'pending', 'verified'],
+        default: 'unverified'
+      },
+      verifiedAt: { type: Date }
+    }
   },
   postedBy: {
     type: mongoose.Schema.Types.ObjectId,

@@ -11,6 +11,25 @@ const applicationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  fullName: {
+    type: String,
+    trim: true
+  },
+  contactEmail: {
+    type: String,
+    trim: true
+  },
+  phone: {
+    type: String,
+    trim: true
+  },
+  linkedinUrl: {
+    type: String,
+    trim: true
+  },
+  skills: [{
+    type: String
+  }],
   status: {
     type: String,
     enum: ['pending', 'reviewed', 'interviewed', 'accepted', 'rejected'],

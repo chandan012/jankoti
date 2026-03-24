@@ -25,6 +25,7 @@ const FreelancingDetail = () => {
   const [contactLoading, setContactLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   useEffect(() => {
     const fetchFreelancing = async () => {
@@ -128,6 +129,7 @@ const FreelancingDetail = () => {
       setProposedTimeline('');
       setShowModal(false);
       setHasApplied(true);
+      setShowWhatsAppModal(true);
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to send your request.';
       setContactStatus(message);
@@ -399,6 +401,25 @@ const FreelancingDetail = () => {
                 </Link>
               )}
             </div>
+
+            <Modal
+              isOpen={showWhatsAppModal}
+              onClose={() => setShowWhatsAppModal(false)}
+              title="Stay Updated on WhatsApp"
+            >
+              <p style={{ marginBottom: '16px', color: '#4b5563' }}>
+                Join our WhatsApp channel to get the latest updates and announcements.
+              </p>
+              <a
+                className="btn btn-success"
+                href="https://whatsapp.com/channel/0029VbC0L1Z8F2pI4oZSFV0z"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ width: '100%', textAlign: 'center' }}
+              >
+                Join WhatsApp Channel
+              </a>
+            </Modal>
 
             {freelancing.postedBy && (
               <div

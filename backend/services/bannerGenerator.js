@@ -66,6 +66,17 @@ const drawLine = (ctx, text, x, y, font, color = '#1f2937', maxWidth = TEXT_MAX_
   ctx.fillText(String(text || ''), x, y, maxWidth);
 };
 
+const formatPostedDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
 const generateJobBanner = async (jobData) => {
   await loadFonts();
   await ensureDir(OUTPUT_DIR);
@@ -104,6 +115,12 @@ const generateJobBanner = async (jobData) => {
   ctx.fillStyle = '#111111';
   ctx.textAlign = 'center';
   ctx.fillText('Fresher Hiring News from Jankoti.com', CANVAS_WIDTH / 2, 22);
+  const postedDate = formatPostedDate(jobData.createdAt);
+  if (postedDate) {
+    ctx.font = '500 18px "Poppins", Arial';
+    ctx.fillStyle = '#111111';
+    ctx.fillText(`Posted on ${postedDate}`, CANVAS_WIDTH / 2, 54);
+  }
   ctx.textAlign = 'left';
 
   // Candidate image is already part of the template. Only draw a separate image
@@ -157,13 +174,12 @@ const generateJobBanner = async (jobData) => {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Kindly Note section
-  drawLine(ctx, 'Kindly Note:', LEFT_X, dividerY + 18, '600 24px "Poppins", Arial', '#1f2937');
+  // Kindly Note section (single line)
   drawLine(
     ctx,
-    'Immediate Joiners Preferred',
+    'Kindly Note: Immediate Joiners Preferred',
     LEFT_X,
-    dividerY + 50,
+    dividerY + 28,
     '600 22px "Poppins", Arial',
     '#1f2937'
   );

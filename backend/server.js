@@ -62,19 +62,26 @@ app.use(passport.session());
 
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected successfully'))
+  .then(() => {
+    console.log('MongoDB connected successfully');
+    runDataCleanup();
+    setInterval(runDataCleanup, 12 * 60 * 60 * 1000);
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
 const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
 const applicationRoutes = require('./routes/applications');
+const adminRoutes = require('./routes/admin');
 const freelancingRoutes = require('./routes/freelancing');
 const startupRoutes = require('./routes/startup');
 const podcastRoutes = require('./routes/podcast');
 const classifiedRoutes = require('./routes/classified');
 const Job = require('./models/Job');
+const Application = require('./models/Application');
 const Freelancing = require('./models/Freelancing');
+const FreelancingApplication = require('./models/FreelancingApplication');
 const Startup = require('./models/Startup');
 const Podcast = require('./models/Podcast');
 const Classified = require('./models/Classified');
@@ -82,10 +89,38 @@ const Classified = require('./models/Classified');
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/freelancing', freelancingRoutes);
 app.use('/api/startup', startupRoutes);
 app.use('/api/podcast', podcastRoutes);
 app.use('/api/classified', classifiedRoutes);
+
+const POST_AUTO_PURGE_DAYS = Number(process.env.POST_AUTO_PURGE_DAYS || process.env.JOB_AUTO_PURGE_DAYS || 60);
+
+const runDataCleanup = async () => {
+  try {
+    if (Number.isFinite(POST_AUTO_PURGE_DAYS) && POST_AUTO_PURGE_DAYS > 0) {
+      const cutoff = new Date(Date.now() - POST_AUTO_PURGE_DAYS * 24 * 60 * 60 * 1000);
+      const expiredJobs = await Job.find({ createdAt: { $lt: cutoff } }).select('_id').lean();
+      const expiredJobIds = expiredJobs.map((job) => job._id);
+      if (expiredJobIds.length > 0) {
+        await Application.deleteMany({ job: { $in: expiredJobIds } });
+        await Job.deleteMany({ _id: { $in: expiredJobIds } });
+      }
+
+      const expiredFreelancing = await Freelancing.find({ createdAt: { $lt: cutoff } })
+        .select('_id')
+        .lean();
+      const expiredFreelancingIds = expiredFreelancing.map((item) => item._id);
+      if (expiredFreelancingIds.length > 0) {
+        await FreelancingApplication.deleteMany({ freelancing: { $in: expiredFreelancingIds } });
+        await Freelancing.deleteMany({ _id: { $in: expiredFreelancingIds } });
+      }
+    }
+  } catch (error) {
+    console.warn('Data cleanup failed:', error.message);
+  }
+};
 
 const escapeXml = (value) => {
   if (!value) return '';

@@ -5,6 +5,13 @@ const Job = require('../models/Job');
 const { auth, requireCandidate, requireOrganization } = require('../middleware/auth');
 const { sendApplicationNotification, sendAdminAlert, sendCandidateWelcomeEmail } = require('../services/emailService');
 
+const POST_AUTO_PURGE_DAYS = Number(process.env.POST_AUTO_PURGE_DAYS || process.env.JOB_AUTO_PURGE_DAYS || 60);
+const isJobExpiredByAge = (job) => {
+  if (!job?.createdAt || !Number.isFinite(POST_AUTO_PURGE_DAYS)) return false;
+  const cutoff = Date.now() - POST_AUTO_PURGE_DAYS * 24 * 60 * 60 * 1000;
+  return new Date(job.createdAt).getTime() < cutoff;
+};
+
 // @route   POST /api/applications
 // @desc    Apply for a job
 // @access  Private (Job seekers only)
@@ -46,6 +53,10 @@ router.post('/', auth, requireCandidate, async (req, res) => {
     // Check application deadline
     if (job.applicationDeadline && new Date() > new Date(job.applicationDeadline)) {
       return res.status(400).json({ message: 'Application deadline has passed' });
+    }
+
+    if (isJobExpiredByAge(job)) {
+      return res.status(400).json({ message: 'This job is no longer accepting applications' });
     }
     
     // Create application

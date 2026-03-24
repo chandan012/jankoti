@@ -12,7 +12,6 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 const ALLOWED_DOCUMENT_TYPES = new Set([
   'application/pdf',
-  'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ]);
 
@@ -91,7 +90,7 @@ const documentFileFilter = (req, file, cb) => {
   if (ALLOWED_DOCUMENT_TYPES.has(file.mimetype)) {
     return cb(null, true);
   }
-  return cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Only PDF or Word documents are allowed.'));
+  return cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Only PDF/DOCX files allowed.'));
 };
 
 const createDocumentUpload = (fieldName = 'resume') => {

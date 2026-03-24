@@ -25,8 +25,16 @@ const buildBannerPayload = (job) => ({
   location: job.location,
   jobType: job.jobType,
   email: job.email || job.contactEmail || job.postedBy?.email,
-  phone: job.phone || job.contactPhone || job.postedBy?.phone
+  phone: job.phone || job.contactPhone || job.postedBy?.phone,
+  createdAt: job.createdAt
 });
+
+const POST_AUTO_PURGE_DAYS = Number(process.env.POST_AUTO_PURGE_DAYS || process.env.JOB_AUTO_PURGE_DAYS || 60);
+const isJobExpiredByAge = (job) => {
+  if (!job?.createdAt || !Number.isFinite(POST_AUTO_PURGE_DAYS)) return false;
+  const cutoff = Date.now() - POST_AUTO_PURGE_DAYS * 24 * 60 * 60 * 1000;
+  return new Date(job.createdAt).getTime() < cutoff;
+};
 
 const uploadBannerToCloudinary = (localBannerPath, jobId) => {
   return cloudinary.uploader.upload(localBannerPath, {
@@ -210,18 +218,35 @@ router.post('/:id/contact', auth, requireCandidate, uploadResume, async (req, re
       return res.status(404).json({ message: 'Job not found' });
     }
 
+    if (job.status && job.status !== 'active') {
+      return res.status(400).json({ message: 'This job is no longer accepting applications' });
+    }
+
+    if (job.applicationDeadline && new Date() > new Date(job.applicationDeadline)) {
+      return res.status(400).json({ message: 'Application deadline has passed' });
+    }
+
+    if (isJobExpiredByAge(job)) {
+      return res.status(400).json({ message: 'This job is no longer accepting applications' });
+    }
+
     const existingApplication = await Application.findOne({ job: job._id, applicant: req.userId });
     if (existingApplication) {
       return res.status(400).json({ message: 'You have already applied for this job' });
     }
 
     const trimmedName = (fullName || '').trim();
-    const trimmedEmail = (contactEmail || '').trim();
+    const resolvedEmail = (req.user?.email || contactEmail || '').trim();
     const trimmedPhone = (phone || '').trim();
+    const normalizedPhone = trimmedPhone.replace(/\D/g, '');
     const trimmedLinkedIn = (linkedinUrl || '').trim();
 
-    if (!trimmedName || !trimmedEmail || !trimmedPhone || !trimmedLinkedIn) {
+    if (!trimmedName || !resolvedEmail || !trimmedPhone || !trimmedLinkedIn) {
       return res.status(400).json({ message: 'Full name, contact email, phone, and LinkedIn URL are required.' });
+    }
+
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      return res.status(400).json({ message: 'Mobile number must be 10 digits.' });
     }
 
     if (!req.file) {
@@ -233,21 +258,26 @@ router.post('/:id/contact', auth, requireCandidate, uploadResume, async (req, re
       return res.status(400).json({ message: 'No contact email found for this job' });
     }
 
+    const normalizedSkills = parseArray(skills) || [];
     const application = await Application.create({
       job: job._id,
       applicant: req.userId,
-      status: 'pending'
+      status: 'pending',
+      fullName: trimmedName,
+      contactEmail: resolvedEmail,
+      phone: normalizedPhone,
+      linkedinUrl: trimmedLinkedIn,
+      skills: normalizedSkills
     });
 
     job.applications.push(application._id);
     await job.save();
 
-    const normalizedSkills = parseArray(skills) || [];
     const skillsLabel = normalizedSkills.length > 0 ? normalizedSkills.join(', ') : 'Not provided';
     const resumeLabel = req.file ? `Attached (${req.file.originalname})` : 'Not provided';
 
     const subject = `New candidate for your job post: ${job.title}`;
-    const text = `Hello,\n\nThis email is from jankoti.com regarding the job post you recently published on our website.\n\nWe would like to inform you that a candidate has applied for this opportunity. The candidate details are shared below for your reference.\n\nOpportunity: ${job.title}\n\nApplicant Information:\n- Full Name: ${trimmedName}\n- Contact Email: ${trimmedEmail}\n- Phone: ${trimmedPhone}\n\nProfessional Details:\n- Skills: ${skillsLabel}\n- LinkedIn URL: ${trimmedLinkedIn}\n- Resume: ${resumeLabel}\n\nPlease feel free to review the profile and reach out if you are interested.\n\nLet us know if you need any further assistance.\n\nThank you for choosing jankoti.com.\n\nBest regards,\nTeam Jankoti\nwww.jankoti.com\n`;
+    const text = `Hello,\n\nThis email is from jankoti.com regarding the job post you recently published on our website.\n\nWe would like to inform you that a candidate has applied for this opportunity. The candidate details are shared below for your reference.\n\nOpportunity: ${job.title}\n\nApplicant Information:\n- Full Name: ${trimmedName}\n- Contact Email: ${resolvedEmail}\n- Phone: ${normalizedPhone}\n\nProfessional Details:\n- Skills: ${skillsLabel}\n- LinkedIn URL: ${trimmedLinkedIn}\n- Resume: ${resumeLabel}\n\nPlease feel free to review the profile and reach out if you are interested.\n\nLet us know if you need any further assistance.\n\nThank you for choosing jankoti.com.\n\nBest regards,\nTeam Jankoti\nwww.jankoti.com\n`;
 
     const attachments = req.file ? [{
       filename: req.file.originalname,
@@ -260,7 +290,7 @@ router.post('/:id/contact', auth, requireCandidate, uploadResume, async (req, re
       subject,
       text,
       attachments,
-      replyTo: trimmedEmail
+      replyTo: resolvedEmail
     });
 
     if (req.user?.email) {

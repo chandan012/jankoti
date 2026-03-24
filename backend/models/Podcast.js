@@ -19,6 +19,10 @@ const podcastSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  guestLinkedin: {
+    type: String,
+    trim: true
+  },
   aboutGuest: {
     type: String
   },

@@ -12,7 +12,8 @@ const startupSchema = new mongoose.Schema({
   },
   founderName: {
     type: String,
-    trim: true
+    trim: true,
+    required: true
   },
   coFounderName: {
     type: String,
@@ -52,6 +53,10 @@ const startupSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
+    trim: true
+  },
+  contactNumber: {
+    type: String,
     trim: true
   },
   industry: {

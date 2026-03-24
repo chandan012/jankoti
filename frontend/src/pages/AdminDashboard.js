@@ -6,7 +6,15 @@ import useSeo from '../hooks/useSeo';
 const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('jobs');
+  const [activeSection, setActiveSection] = useState('candidate');
+  const [activeOrgTab, setActiveOrgTab] = useState('jobs');
+
+  const [jobApplications, setJobApplications] = useState([]);
+  const [freelancingApplications, setFreelancingApplications] = useState([]);
+  const [classifiedApplications, setClassifiedApplications] = useState([]);
+  const [candidateLoading, setCandidateLoading] = useState(true);
+  const [candidateError, setCandidateError] = useState('');
+  const [candidateLastUpdated, setCandidateLastUpdated] = useState(null);
 
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -34,7 +42,24 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchJobs();
     fetchFreelancing();
+    fetchCandidateData();
   }, []);
+
+  const fetchCandidateData = async () => {
+    try {
+      setCandidateLoading(true);
+      setCandidateError('');
+      const response = await axios.get(`${API_URL}/admin/candidate-data`);
+      setJobApplications(response.data.jobApplications || []);
+      setFreelancingApplications(response.data.freelancingApplications || []);
+      setClassifiedApplications(response.data.classifieds || []);
+      setCandidateLastUpdated(new Date());
+    } catch (err) {
+      setCandidateError(err.response?.data?.message || 'Failed to load candidate data');
+    } finally {
+      setCandidateLoading(false);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -155,15 +180,22 @@ const AdminDashboard = () => {
     return badges[status] || 'badge-primary';
   };
 
-  const getApplicationStatusBadge = (status) => {
-    const badges = {
-      pending: 'badge-warning',
-      reviewed: 'badge-primary',
-      interviewed: 'badge-primary',
-      accepted: 'badge-success',
-      rejected: 'badge-danger'
-    };
-    return badges[status] || 'badge-primary';
+  const downloadCsv = (rows, headers, filename) => {
+    if (!rows || rows.length === 0) return;
+    const escapeValue = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csvLines = [
+      headers.join(','),
+      ...rows.map((row) => headers.map((header) => escapeValue(row[header])).join(','))
+    ];
+    const csvBlob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(csvBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getProjectTypeLabel = (type) => {
@@ -174,6 +206,55 @@ const AdminDashboard = () => {
       'fixed-price': 'Fixed Price'
     };
     return labels[type] || type || 'Not specified';
+  };
+
+  const fetchJobApplications = async (jobId) => {
+    if (applicationsByJob[jobId]) {
+      return applicationsByJob[jobId];
+    }
+
+    try {
+      setAppsLoading((prev) => ({ ...prev, [jobId]: true }));
+      setAppsError((prev) => ({ ...prev, [jobId]: '' }));
+      const response = await axios.get(`${API_URL}/jobs/${jobId}/applications`);
+      const apps = response.data.applications || [];
+      setApplicationsByJob((prev) => ({
+        ...prev,
+        [jobId]: apps
+      }));
+      return apps;
+    } catch (err) {
+      setAppsError((prev) => ({
+        ...prev,
+        [jobId]: err.response?.data?.message || 'Failed to load applications'
+      }));
+      return [];
+    } finally {
+      setAppsLoading((prev) => ({ ...prev, [jobId]: false }));
+    }
+  };
+
+  const handleDownloadJobApplicants = async (job) => {
+    const apps = await fetchJobApplications(job._id);
+    if (!apps || apps.length === 0) return;
+    const rows = apps.map((application) => ({
+      Name: application.fullName || application.applicant?.name || '—',
+      'Job Name': job.title || '—',
+      'Mobile Number': application.phone || '—',
+      Email: application.contactEmail || application.applicant?.email || '—',
+      'LinkedIn ID': application.linkedinUrl || application.profileUrl || '—',
+      Skills: application.skills?.length ? application.skills.join(', ') : '—',
+      'Applied Date': formatDateShort(application.appliedAt)
+    }));
+    const safeTitle = String(job.title || 'job')
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-_]/g, '');
+    downloadCsv(
+      rows,
+      ['Name', 'Job Name', 'Mobile Number', 'Email', 'LinkedIn ID', 'Skills', 'Applied Date'],
+      `${safeTitle || 'job'}-applicants.csv`
+    );
   };
 
   const toggleApplications = async (jobId) => {
@@ -236,25 +317,55 @@ const AdminDashboard = () => {
     }
   };
 
-  const getStatusBreakdown = (applications = []) => {
-    return applications.reduce((acc, application) => {
-      const status = application.status || 'pending';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {});
-  };
-
-  const refreshActiveTab = () => {
-    if (activeTab === 'jobs') {
+  const refreshActiveSection = () => {
+    if (activeSection === 'candidate') {
+      fetchCandidateData();
+      return;
+    }
+    if (activeOrgTab === 'jobs') {
       fetchJobs();
       return;
     }
     fetchFreelancing();
   };
 
-  const activeLoading = activeTab === 'jobs' ? jobsLoading : freelancingLoading;
-  const activeError = activeTab === 'jobs' ? jobsError : freelancingError;
-  const activeLastUpdated = activeTab === 'jobs' ? jobsLastUpdated : freelancingLastUpdated;
+  const activeLoading = activeSection === 'candidate'
+    ? candidateLoading
+    : (activeOrgTab === 'jobs' ? jobsLoading : freelancingLoading);
+  const activeError = activeSection === 'candidate'
+    ? candidateError
+    : (activeOrgTab === 'jobs' ? jobsError : freelancingError);
+  const activeLastUpdated = activeSection === 'candidate'
+    ? candidateLastUpdated
+    : (activeOrgTab === 'jobs' ? jobsLastUpdated : freelancingLastUpdated);
+
+  const jobApplicationRows = jobApplications.map((application) => ({
+    Name: application.fullName || application.applicant?.name || '—',
+    'Job Name': application.job?.title || '—',
+    'Mobile Number': application.phone || '—',
+    Email: application.contactEmail || application.applicant?.email || '—',
+    'LinkedIn ID': application.linkedinUrl || application.profileUrl || '—',
+    Skills: application.skills?.length ? application.skills.join(', ') : '—',
+    'Applied Date': formatDateShort(application.appliedAt)
+  }));
+
+  const freelancingApplicationRows = freelancingApplications.map((application) => ({
+    Name: application.fullName || application.applicant?.name || '—',
+    Project: application.freelancing?.title || '—',
+    Mobile: application.phone || '—',
+    Email: application.contactEmail || application.applicant?.email || '—',
+    'LinkedIn ID': application.linkedinUrl || '—',
+    Budget: application.proposedBudget || '—',
+    'Applied Date': formatDateShort(application.appliedAt)
+  }));
+
+  const classifiedRows = classifiedApplications.map((item) => ({
+    Name: item.sellerName || '—',
+    Item: item.itemName || '—',
+    Mobile: item.sellerContact || '—',
+    'Seller Email': item.sellerEmail || '—',
+    'Applied Date': formatDateShort(item.createdAt)
+  }));
 
   return (
     <div className="dashboard">
@@ -263,9 +374,11 @@ const AdminDashboard = () => {
           <div>
             <h1 className="dashboard-title">Admin Dashboard</h1>
             <p className="dashboard-subtitle">
-              {activeTab === 'jobs'
-                ? 'Job insights, application activity, and posting ownership.'
-                : 'Freelancing insights, applicant activity, and posting ownership.'}
+              {activeSection === 'candidate'
+                ? 'Candidate activity across job, freelancing, and classified submissions.'
+                : (activeOrgTab === 'jobs'
+                  ? 'Job insights, application activity, and posting ownership.'
+                  : 'Freelancing insights, applicant activity, and posting ownership.')}
             </p>
             {activeLastUpdated && (
               <p className="dashboard-meta">Last updated: {activeLastUpdated.toLocaleString()}</p>
@@ -273,7 +386,7 @@ const AdminDashboard = () => {
           </div>
           <button
             className="btn btn-outline btn-sm"
-            onClick={refreshActiveTab}
+            onClick={refreshActiveSection}
             disabled={activeLoading}
           >
             {activeLoading ? 'Refreshing...' : 'Refresh'}
@@ -283,23 +396,210 @@ const AdminDashboard = () => {
         <div className="admin-tabs">
           <button
             type="button"
-            className={`admin-tab ${activeTab === 'jobs' ? 'active' : ''}`}
-            onClick={() => setActiveTab('jobs')}
+            className={`admin-tab ${activeSection === 'candidate' ? 'active' : ''}`}
+            onClick={() => setActiveSection('candidate')}
           >
-            Jobs
+            Candidate Data
           </button>
           <button
             type="button"
-            className={`admin-tab ${activeTab === 'freelancing' ? 'active' : ''}`}
-            onClick={() => setActiveTab('freelancing')}
+            className={`admin-tab ${activeSection === 'organization' ? 'active' : ''}`}
+            onClick={() => setActiveSection('organization')}
           >
-            Freelancing
+            Organization Data
           </button>
         </div>
 
+        {activeSection === 'organization' && (
+          <div className="admin-tabs admin-subtabs">
+            <button
+              type="button"
+              className={`admin-tab ${activeOrgTab === 'jobs' ? 'active' : ''}`}
+              onClick={() => setActiveOrgTab('jobs')}
+            >
+              Jobs
+            </button>
+            <button
+              type="button"
+              className={`admin-tab ${activeOrgTab === 'freelancing' ? 'active' : ''}`}
+              onClick={() => setActiveOrgTab('freelancing')}
+            >
+              Freelancing
+            </button>
+          </div>
+        )}
+
         {activeError && <div className="alert alert-danger">{activeError}</div>}
 
-        {activeTab === 'jobs' && (
+        {activeSection === 'candidate' && (
+          <>
+            <div className="job-list-header">
+              <h2 className="job-list-title">Job Applications</h2>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => downloadCsv(
+                  jobApplicationRows,
+                  ['Name', 'Job Name', 'Mobile Number', 'Email', 'LinkedIn ID', 'Skills', 'Applied Date'],
+                  'job-applications.csv'
+                )}
+                disabled={candidateLoading || jobApplicationRows.length === 0}
+              >
+                Download CSV
+              </button>
+            </div>
+
+            {candidateLoading ? (
+              <div className="loading" style={{ minHeight: '160px' }}>
+                <div className="spinner"></div>
+              </div>
+            ) : jobApplicationRows.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">No Data</div>
+                <h3 className="empty-state-title">No job applications found</h3>
+                <p className="empty-state-text">Applications will appear here as candidates apply.</p>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Job Name</th>
+                      <th>Mobile Number</th>
+                      <th>Email</th>
+                      <th>LinkedIn ID</th>
+                      <th>Skills</th>
+                      <th>Applied Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobApplicationRows.map((row, index) => (
+                      <tr key={`job-app-${index}`}>
+                        <td>{row['Name']}</td>
+                        <td>{row['Job Name']}</td>
+                        <td>{row['Mobile Number']}</td>
+                        <td>{row['Email']}</td>
+                        <td>{row['LinkedIn ID']}</td>
+                        <td>{row['Skills']}</td>
+                        <td>{row['Applied Date']}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="job-list-header" style={{ marginTop: '32px' }}>
+              <h2 className="job-list-title">Freelancing Applications</h2>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => downloadCsv(
+                  freelancingApplicationRows,
+                  ['Name', 'Project', 'Mobile', 'Email', 'LinkedIn ID', 'Budget', 'Applied Date'],
+                  'freelancing-applications.csv'
+                )}
+                disabled={candidateLoading || freelancingApplicationRows.length === 0}
+              >
+                Download CSV
+              </button>
+            </div>
+
+            {candidateLoading ? (
+              <div className="loading" style={{ minHeight: '160px' }}>
+                <div className="spinner"></div>
+              </div>
+            ) : freelancingApplicationRows.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">No Data</div>
+                <h3 className="empty-state-title">No freelancing applications found</h3>
+                <p className="empty-state-text">Applications will appear here as candidates apply.</p>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Project</th>
+                      <th>Mobile</th>
+                      <th>Email</th>
+                      <th>LinkedIn ID</th>
+                      <th>Budget</th>
+                      <th>Applied Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {freelancingApplicationRows.map((row, index) => (
+                      <tr key={`freelance-app-${index}`}>
+                        <td>{row['Name']}</td>
+                        <td>{row['Project']}</td>
+                        <td>{row['Mobile']}</td>
+                        <td>{row['Email']}</td>
+                        <td>{row['LinkedIn ID']}</td>
+                        <td>{row['Budget']}</td>
+                        <td>{row['Applied Date']}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="job-list-header" style={{ marginTop: '32px' }}>
+              <h2 className="job-list-title">Classified</h2>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => downloadCsv(
+                  classifiedRows,
+                  ['Name', 'Item', 'Mobile', 'Seller Email', 'Applied Date'],
+                  'classified.csv'
+                )}
+                disabled={candidateLoading || classifiedRows.length === 0}
+              >
+                Download CSV
+              </button>
+            </div>
+
+            {candidateLoading ? (
+              <div className="loading" style={{ minHeight: '160px' }}>
+                <div className="spinner"></div>
+              </div>
+            ) : classifiedRows.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">No Data</div>
+                <h3 className="empty-state-title">No classifieds found</h3>
+                <p className="empty-state-text">Listings will appear here as they are posted.</p>
+              </div>
+            ) : (
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Item</th>
+                      <th>Mobile</th>
+                      <th>Seller Email</th>
+                      <th>Applied Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classifiedRows.map((row, index) => (
+                      <tr key={`classified-${index}`}>
+                        <td>{row['Name']}</td>
+                        <td>{row['Item']}</td>
+                        <td>{row['Mobile']}</td>
+                        <td>{row['Seller Email']}</td>
+                        <td>{row['Applied Date']}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeSection === 'organization' && activeOrgTab === 'jobs' && (
           <>
             <div className="dashboard-stats">
               <div className="stat-card">
@@ -377,7 +677,6 @@ const AdminDashboard = () => {
             <div className="admin-job-grid">
               {jobs.map((job) => {
                 const applications = applicationsByJob[job._id] || [];
-                const statusBreakdown = getStatusBreakdown(applications);
                 const applicantCount = job.applications?.length || 0;
                 const postedByName = job.postedBy?.name || 'Unknown';
                 const postedByEmail = job.postedBy?.email || '—';
@@ -430,29 +729,28 @@ const AdminDashboard = () => {
                         )}
 
                         {!appsLoading[job._id] && applications.length > 0 && (
-                          <>
-                            <div className="admin-app-summary">
-                              {Object.entries(statusBreakdown).map(([status, count]) => (
-                                <span key={status} className={`badge ${getApplicationStatusBadge(status)}`}>
-                                  {status}: {count}
-                                </span>
-                              ))}
-                            </div>
-                            <div className="admin-app-list">
-                              {applications.map((application) => (
-                                <div key={application._id} className="admin-app-card">
-                                  <div>
-                                    <div className="admin-app-name">{application.applicant?.name || 'Unnamed Applicant'}</div>
-                                    <div className="admin-app-meta">{application.applicant?.email || 'No email provided'}</div>
-                                    <div className="admin-app-meta">Applied: {formatDateShort(application.appliedAt)}</div>
-                                  </div>
-                                  <span className={`badge ${getApplicationStatusBadge(application.status)}`}>
-                                    {application.status || 'pending'}
-                                  </span>
+                          <div className="admin-app-list">
+                            {applications.map((application) => (
+                              <div key={application._id} className="admin-app-card">
+                                <div>
+                                  <div className="admin-app-name">{application.applicant?.name || 'Unnamed Applicant'}</div>
+                                  <div className="admin-app-meta">{application.applicant?.email || 'No email provided'}</div>
+                                  <div className="admin-app-meta">Applied: {formatDateShort(application.appliedAt)}</div>
                                 </div>
-                              ))}
-                            </div>
-                          </>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {!appsLoading[job._id] && applications.length > 0 && (
+                          <div style={{ marginTop: '12px' }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleDownloadJobApplicants(job)}
+                            >
+                              Download Applicants
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -463,7 +761,7 @@ const AdminDashboard = () => {
           </>
         )}
 
-        {activeTab === 'freelancing' && (
+        {activeSection === 'organization' && activeOrgTab === 'freelancing' && (
           <>
             <div className="dashboard-stats">
               <div className="stat-card">

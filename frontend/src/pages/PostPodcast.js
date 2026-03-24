@@ -17,6 +17,7 @@ const PostPodcast = () => {
     podcastName: '',
     episodeLink: '',
     guestName: '',
+    guestLinkedin: '',
     aboutGuest: ''
   });
 
@@ -48,6 +49,7 @@ const PostPodcast = () => {
       payload.append('email', resolvedEmail);
       payload.append('episodeLink', formData.episodeLink);
       payload.append('guestName', formData.guestName);
+      payload.append('guestLinkedin', formData.guestLinkedin);
       payload.append('aboutGuest', formData.aboutGuest);
 
       const response = await axios.post(`${API_URL}/podcast`, payload, {
@@ -97,11 +99,11 @@ const PostPodcast = () => {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">Channel Name *</label>
+                <label className="form-label">Podcast Summary *</label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g., The Tech Startup Show"
+                  placeholder="e.g., The Tech Startup Show focuses on founder stories"
                   name="podcastName"
                   value={formData.podcastName}
                   onChange={handleChange}
@@ -117,6 +119,18 @@ const PostPodcast = () => {
                   placeholder="e.g., Jane Doe"
                   name="guestName"
                   value={formData.guestName}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Guest LinkedIn ID</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="LinkedIn profile ID or URL"
+                  name="guestLinkedin"
+                  value={formData.guestLinkedin}
                   onChange={handleChange}
                 />
               </div>

@@ -1,12 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const Freelancing = require('../models/Freelancing');
+const FreelancingApplication = require('../models/FreelancingApplication');
 const { auth, optionalAuth, requireOrganization, requireCandidate } = require('../middleware/auth');
 const { sendFreelancingContactEmail, sendCandidateWelcomeEmail } = require('../services/emailService');
 const { createImageUpload, deleteImage } = require('../config/cloudinary');
 const { parseArray, parseJson, parseDate } = require('../utils/requestParser');
 
 const uploadFreelancingImage = createImageUpload('freelancing');
+const POST_AUTO_PURGE_DAYS = Number(process.env.POST_AUTO_PURGE_DAYS || process.env.JOB_AUTO_PURGE_DAYS || 60);
+const isFreelancingExpiredByAge = (freelancing) => {
+  if (!freelancing?.createdAt || !Number.isFinite(POST_AUTO_PURGE_DAYS)) return false;
+  const cutoff = Date.now() - POST_AUTO_PURGE_DAYS * 24 * 60 * 60 * 1000;
+  return new Date(freelancing.createdAt).getTime() < cutoff;
+};
 
 // Get all freelancing postings
 router.get('/', async (req, res) => {
@@ -104,7 +111,7 @@ router.get('/:id/applications', auth, requireOrganization, async (req, res) => {
 });
 
 // Contact freelancing poster (candidate only)
-router.post('/:id/contact', auth, requireCandidate, async (req, res) => {
+  router.post('/:id/contact', auth, requireCandidate, async (req, res) => {
   try {
     const {
       fullName,
@@ -124,6 +131,14 @@ router.post('/:id/contact', auth, requireCandidate, async (req, res) => {
       return res.status(404).json({ message: 'Freelancing posting not found' });
     }
 
+    if (freelancing.deadline && new Date() > new Date(freelancing.deadline)) {
+      return res.status(400).json({ message: 'This freelancing opportunity has expired.' });
+    }
+
+    if (isFreelancingExpiredByAge(freelancing)) {
+      return res.status(400).json({ message: 'This freelancing opportunity has expired.' });
+    }
+
     if (freelancing.applications?.some((applicantId) => applicantId.toString() === req.userId)) {
       return res.status(400).json({ message: 'You have already applied for this freelancing opportunity' });
     }
@@ -131,6 +146,7 @@ router.post('/:id/contact', auth, requireCandidate, async (req, res) => {
     const trimmedName = (fullName || '').trim();
     const trimmedEmail = (contactEmail || '').trim();
     const trimmedPhone = (phone || '').trim();
+    const normalizedPhone = trimmedPhone.replace(/\D/g, '');
     const trimmedLinkedIn = (linkedinUrl || '').trim();
     const trimmedBudget = (proposedBudget || '').trim();
     const trimmedTimeline = (proposedTimeline || '').trim();
@@ -158,6 +174,20 @@ router.post('/:id/contact', auth, requireCandidate, async (req, res) => {
       subject,
       text,
       replyTo: trimmedEmail
+    });
+
+    await FreelancingApplication.create({
+      freelancing: freelancing._id,
+      applicant: req.userId,
+      fullName: trimmedName,
+      contactEmail: trimmedEmail,
+      phone: normalizedPhone,
+      linkedinUrl: trimmedLinkedIn,
+      proposedBudget: trimmedBudget,
+      proposedTimeline: trimmedTimeline,
+      skills: normalizedSkills,
+      portfolioUrl: resolvedPortfolio,
+      githubUrl: resolvedGitHub
     });
 
     freelancing.applications = freelancing.applications || [];

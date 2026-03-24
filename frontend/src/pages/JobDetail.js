@@ -8,7 +8,7 @@ const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const JobDetail = () => {
   const { id } = useParams();
-  const { isAuthenticated, isCandidate, isAdmin } = useAuth();
+  const { isAuthenticated, isCandidate, isAdmin, user } = useAuth();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,6 +25,13 @@ const JobDetail = () => {
   const [bannerPolling, setBannerPolling] = useState(false);
   const [bannerGenerating, setBannerGenerating] = useState(false);
   const [bannerGenerateError, setBannerGenerateError] = useState('');
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      setContactEmail(user.email);
+    }
+  }, [user?.email]);
 
   useEffect(() => {
     fetchJob();
@@ -169,8 +176,15 @@ const JobDetail = () => {
   const handleJobContact = async () => {
     setContactStatus('');
 
-    if (!fullName.trim() || !contactEmail.trim() || !phone.trim() || !linkedinUrl.trim()) {
-      setContactStatus('Please fill in all required fields.');
+    const trimmedPhone = phone.trim();
+    const normalizedPhone = trimmedPhone.replace(/\D/g, '');
+    if (!fullName.trim() || !contactEmail.trim() || !trimmedPhone || !linkedinUrl.trim()) {
+      setContactStatus('Full name, email, mobile number, and LinkedIn URL are required.');
+      return;
+    }
+
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      setContactStatus('Mobile number must be 10 digits.');
       return;
     }
 
@@ -179,13 +193,19 @@ const JobDetail = () => {
       return;
     }
 
+    const allowedResumeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (resumeFile && !allowedResumeTypes.includes(resumeFile.type)) {
+      setContactStatus('Only PDF/DOCX files allowed.');
+      return;
+    }
+
     try {
       setContactLoading(true);
       const skills = parseSkillsInput(skillsInput);
       const payload = new FormData();
       payload.append('fullName', fullName.trim());
-      payload.append('contactEmail', contactEmail.trim());
-      payload.append('phone', phone.trim());
+      payload.append('contactEmail', (user?.email || contactEmail).trim());
+      payload.append('phone', normalizedPhone);
       payload.append('linkedinUrl', linkedinUrl.trim());
       if (skills.length > 0) {
         payload.append('skills', JSON.stringify(skills));
@@ -202,6 +222,7 @@ const JobDetail = () => {
       setResumeFile(null);
       setShowModal(false);
       setHasApplied(true);
+      setShowWhatsAppModal(true);
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to send your request.';
       setContactStatus(message);
@@ -451,6 +472,7 @@ const JobDetail = () => {
                       </button>
                     </div>
 
+
                     <Modal
                       isOpen={showModal}
                       onClose={() => {
@@ -477,13 +499,13 @@ const JobDetail = () => {
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Contact Email *</label>
+                        <label className="form-label">Contact Email (Gmail) *</label>
                         <input
                           type="email"
                           className="form-control"
                           placeholder="you@example.com"
                           value={contactEmail}
-                          onChange={(event) => setContactEmail(event.target.value)}
+                          readOnly
                         />
                       </div>
                       <div className="form-group">
@@ -491,9 +513,12 @@ const JobDetail = () => {
                         <input
                           type="tel"
                           className="form-control"
-                          placeholder="+1 555 123 4567"
+                          placeholder="10-digit mobile number"
                           value={phone}
-                          onChange={(event) => setPhone(event.target.value)}
+                          onChange={(event) => {
+                            const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10);
+                            setPhone(digitsOnly);
+                          }}
                         />
                       </div>
 
@@ -519,11 +544,11 @@ const JobDetail = () => {
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Resume (PDF, DOC, DOCX) *</label>
+                        <label className="form-label">Resume (PDF, DOCX) *</label>
                         <input
                           type="file"
                           className="form-control"
-                          accept=".pdf,.doc,.docx"
+                          accept=".pdf,.docx"
                           onChange={(event) => setResumeFile(event.target.files?.[0] || null)}
                         />
                       </div>
@@ -556,6 +581,25 @@ const JobDetail = () => {
                 </Link>
               )}
             </div>
+
+            <Modal
+              isOpen={showWhatsAppModal}
+              onClose={() => setShowWhatsAppModal(false)}
+              title="Stay Updated on WhatsApp"
+            >
+              <p style={{ marginBottom: '16px', color: '#4b5563' }}>
+                Join our WhatsApp channel to get the latest job updates and announcements.
+              </p>
+              <a
+                className="btn btn-success"
+                href="https://whatsapp.com/channel/0029VbC0L1Z8F2pI4oZSFV0z"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ width: '100%', textAlign: 'center' }}
+              >
+                Join WhatsApp Channel
+              </a>
+            </Modal>
 
             {/* Posted By Info */}
             {job.postedBy && (

@@ -24,6 +24,7 @@ const PostStartup = () => {
     teamSize: '1-10',
     website: '',
     location: '',
+    contactNumber: '',
     founderName: '',
     coFounderName: '',
     aboutStartup: '',
@@ -60,11 +61,24 @@ const PostStartup = () => {
     setLoading(true);
 
     try {
+      const normalizedContact = formData.contactNumber.replace(/\D/g, '');
+      if (!/^\d{10}$/.test(normalizedContact)) {
+        setError('Contact number must be 10 digits.');
+        setLoading(false);
+        return;
+      }
+      if (!formData.founderName.trim()) {
+        setError('Founder name is required.');
+        setLoading(false);
+        return;
+      }
+
       const payload = new FormData();
       payload.append('description', formData.aboutStartup);
       payload.append('startupName', formData.startupName);
       payload.append('companyName', formData.companyName);
       payload.append('email', formData.email);
+      payload.append('contactNumber', normalizedContact);
       payload.append('industry', formData.industry);
       payload.append('fundingStage', formData.fundingStage);
       payload.append('teamSize', formData.teamSize);
@@ -124,9 +138,9 @@ const PostStartup = () => {
   return (
     <div className="post-job-page">
       <div className="container" style={{ padding: '40px 20px', maxWidth: '800px' }}>
-        <div className="job-detail-card">
+          <div className="job-detail-card">
           <div className="job-detail-header" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-            <h1 className="job-detail-title">List Your Startup</h1>
+            <h1 className="job-detail-title">List your Startup!!</h1>
             <p style={{ opacity: 0.9 }}>Showcase your startup to potential investors and talent</p>
           </div>
 
@@ -163,7 +177,7 @@ const PostStartup = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Founder Name</label>
+                  <label className="form-label">Founder Name *</label>
                   <input
                     type="text"
                     className="form-control"
@@ -171,6 +185,7 @@ const PostStartup = () => {
                     name="founderName"
                     value={formData.founderName}
                     onChange={handleChange}
+                    required
                   />
                 </div>
                 <div className="form-group">
@@ -208,6 +223,21 @@ const PostStartup = () => {
                     name="industry"
                     value={formData.industry}
                     onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Contact Number *</label>
+                  <input
+                    type="tel"
+                    className="form-control"
+                    placeholder="10-digit mobile number"
+                    name="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={(event) => {
+                      const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData(prev => ({ ...prev, contactNumber: digitsOnly }));
+                    }}
                     required
                   />
                 </div>

@@ -232,10 +232,17 @@ const sendAdminAlert = async ({ subject, text }) => {
   return sendEmail({ to: adminEmails, subject, text });
 };
 
+const sendClassifiedOtpEmail = async ({ to, code }) => {
+  const subject = 'Your Jankoti Classified OTP';
+  const text = `Your OTP for classified email verification is ${code}.\n\nThis code expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.\n\nTeam Jankoti.com`;
+  return sendEmail({ to, subject, text });
+};
+
 module.exports = {
   sendFreelancingContactEmail,
   sendCandidateWelcomeEmail,
   sendRegistrationConfirmation,
   sendApplicationNotification,
-  sendAdminAlert
+  sendAdminAlert,
+  sendClassifiedOtpEmail
 };

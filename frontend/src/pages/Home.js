@@ -294,7 +294,7 @@ const Home = () => {
           <h2 className="job-list-title">
             {loading ? 'Loading...' : 'Top Job Postings'}
           </h2>
-          <Link to="/jobs" className="btn btn-outline btn-sm">
+          <Link to="/jobs" className="btn btn-outline btn-sm view-all-button">
             View All
           </Link>
         </div>
@@ -380,7 +380,7 @@ const Home = () => {
             <div style={{ marginTop: '60px' }}>
               <div className="job-list-header">
                 <h2 className="job-list-title">Freelancing Projects</h2>
-                <Link to="/freelancing-view" className="btn btn-outline btn-sm">
+                <Link to="/freelancing-view" className="btn btn-outline btn-sm view-all-button">
                   View All
                 </Link>
               </div>
@@ -453,7 +453,7 @@ const Home = () => {
             <div style={{ marginTop: '60px' }}>
               <div className="job-list-header">
                 <h2 className="job-list-title">Startup Opportunities</h2>
-                <Link to="/startup-view" className="btn btn-outline btn-sm">
+                <Link to="/startup-view" className="btn btn-outline btn-sm view-all-button">
                   View All
                 </Link>
               </div>
@@ -529,7 +529,7 @@ const Home = () => {
             <div style={{ marginTop: '60px' }}>
               <div className="job-list-header">
                 <h2 className="job-list-title">Podcast Listings</h2>
-                <Link to="/podcast-view" className="btn btn-outline btn-sm">
+                <Link to="/podcast-view" className="btn btn-outline btn-sm view-all-button">
                   View All
                 </Link>
               </div>
@@ -596,7 +596,7 @@ const Home = () => {
             <div style={{ marginTop: '60px' }}>
               <div className="job-list-header">
                 <h2 className="job-list-title">Classified Listings</h2>
-                <Link to="/classified-view" className="btn btn-outline btn-sm">
+                <Link to="/classified-view" className="btn btn-outline btn-sm view-all-button">
                   View All
                 </Link>
               </div>
