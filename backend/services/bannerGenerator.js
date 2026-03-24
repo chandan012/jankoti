@@ -12,6 +12,11 @@ const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 1024;
 
 const HEADER_HEIGHT = 80;
+const HEADER_TITLE_X = 380;
+const HEADER_TITLE_Y = 22;
+const HEADER_TITLE_MAX_WIDTH = 500;
+const HEADER_DATE_RIGHT_X = 875;
+const HEADER_DATE_Y = 54;
 const LEFT_X = 70;
 const LEFT_Y = 155;
 const TEXT_MAX_WIDTH = 520;
@@ -113,13 +118,14 @@ const generateJobBanner = async (jobData) => {
   // Header text (yellow bar is already in the template)
   ctx.font = '600 28px "Poppins", Arial';
   ctx.fillStyle = '#111111';
-  ctx.textAlign = 'center';
-  ctx.fillText('Fresher Hiring News from Jankoti.com', CANVAS_WIDTH / 2, 22);
+  ctx.textAlign = 'left';
+  ctx.fillText('Fresher Hiring News from Jankoti.com', HEADER_TITLE_X, HEADER_TITLE_Y, HEADER_TITLE_MAX_WIDTH);
   const postedDate = formatPostedDate(jobData.createdAt);
   if (postedDate) {
     ctx.font = '500 18px "Poppins", Arial';
     ctx.fillStyle = '#111111';
-    ctx.fillText(`Posted on ${postedDate}`, CANVAS_WIDTH / 2, 54);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Posted on ${postedDate}`, HEADER_DATE_RIGHT_X, HEADER_DATE_Y);
   }
   ctx.textAlign = 'left';
 
