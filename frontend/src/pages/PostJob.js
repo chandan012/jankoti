@@ -25,6 +25,11 @@ const PostJob = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'phone') {
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, phone: digitsOnly }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -35,6 +40,12 @@ const PostJob = () => {
     setLoading(true);
 
     try {
+      if (!/^\d{10}$/.test(formData.phone)) {
+        setError('Phone number must be exactly 10 digits.');
+        setLoading(false);
+        return;
+      }
+
       const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(s => s);
       
       // Construct description in the required format
@@ -198,12 +209,19 @@ Skills Required: ${skillsArray.join(', ')}`;
                 <input
                   type="tel"
                   className="form-control"
-                  placeholder="e.g., +1 555 123 4567"
+                  placeholder="e.g., 9876543210"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   required
+                  inputMode="numeric"
+                  pattern="\\d{10}"
+                  minLength={10}
+                  maxLength={10}
                 />
+                <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                  Enter a 10 digit phone number (numbers only).
+                </small>
               </div>
 
               <div className="form-group">
