@@ -157,6 +157,10 @@ router.get('/:id/applications', auth, requireOrganization, async (req, res) => {
       });
     }
 
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      return res.status(400).json({ message: 'Phone number must be 10 digits.' });
+    }
+
     if (!freelancing.email) {
       return res.status(400).json({ message: 'No contact email found for this post' });
     }
@@ -167,7 +171,7 @@ router.get('/:id/applications', auth, requireOrganization, async (req, res) => {
     const resolvedGitHub = (githubUrl || '').trim() || 'Not provided';
 
     const subject = `New candidate for your freelancing post: ${freelancing.title}`;
-    const text = `Hello,\n\nThis email is from jankoti.com regarding the freelancing post you recently published on our website.\n\nWe would like to inform you that a candidate has applied for this opportunity. The candidate details are shared below for your reference.\n\nOpportunity: ${freelancing.title}\n\nApplicant Information:\n- Full Name: ${trimmedName}\n- Contact Email: ${trimmedEmail}\n- Phone: ${trimmedPhone}\n\nProfessional Details:\n- Skills: ${skillsLabel}\n- Portfolio URL: ${resolvedPortfolio}\n- LinkedIn URL: ${trimmedLinkedIn}\n- GitHub URL: ${resolvedGitHub}\n\nProposal Details:\n- Proposed Budget: ${trimmedBudget}\n- Proposed Timeline: ${trimmedTimeline}\n\nPlease feel free to review the profile and reach out if you are interested.\n\nLet us know if you need any further assistance.\n\nThank you for choosing jankoti.com.\n\nBest regards,\nTeam Jankoti\nwww.jankoti.com\n`;
+    const text = `Hello,\n\nThis email is from jankoti.com regarding the freelancing post you recently published on our website.\n\nWe would like to inform you that a candidate has applied for this opportunity. The candidate details are shared below for your reference.\n\nOpportunity: ${freelancing.title}\n\nApplicant Information:\n- Full Name: ${trimmedName}\n- Contact Email: ${trimmedEmail}\n- Phone: ${normalizedPhone}\n\nProfessional Details:\n- Skills: ${skillsLabel}\n- Portfolio URL: ${resolvedPortfolio}\n- LinkedIn URL: ${trimmedLinkedIn}\n- GitHub URL: ${resolvedGitHub}\n\nProposal Details:\n- Proposed Budget: ${trimmedBudget}\n- Proposed Timeline: ${trimmedTimeline}\n\nPlease feel free to review the profile and reach out if you are interested.\n\nLet us know if you need any further assistance.\n\nThank you for choosing jankoti.com.\n\nBest regards,\nTeam Jankoti\nwww.jankoti.com\n`;
 
     await sendFreelancingContactEmail({
       to: freelancing.email,

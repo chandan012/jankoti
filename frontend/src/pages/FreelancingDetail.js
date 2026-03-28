@@ -93,8 +93,15 @@ const FreelancingDetail = () => {
   const handleContact = async () => {
     setContactStatus('');
 
-    if (!fullName.trim() || !contactEmail.trim() || !phone.trim() || !linkedinUrl.trim()) {
+    const trimmedPhone = phone.trim();
+    const normalizedPhone = trimmedPhone.replace(/\D/g, '');
+    if (!fullName.trim() || !contactEmail.trim() || !trimmedPhone || !linkedinUrl.trim()) {
       setContactStatus('Please fill in all required fields.');
+      return;
+    }
+
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      setContactStatus('Mobile number must be 10 digits.');
       return;
     }
 
@@ -109,7 +116,7 @@ const FreelancingDetail = () => {
       await axios.post(`${API_URL}/freelancing/${id}/contact`, {
         fullName: fullName.trim(),
         contactEmail: contactEmail.trim(),
-        phone: phone.trim(),
+        phone: normalizedPhone,
         skills,
         portfolioUrl: portfolioUrl.trim(),
         linkedinUrl: linkedinUrl.trim(),
@@ -303,9 +310,16 @@ const FreelancingDetail = () => {
                         <input
                           type="tel"
                           className="form-control"
-                          placeholder="+1 555 123 4567"
+                          placeholder="10-digit mobile number"
                           value={phone}
-                          onChange={(event) => setPhone(event.target.value)}
+                          onChange={(event) => {
+                            const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10);
+                            setPhone(digitsOnly);
+                          }}
+                          inputMode="numeric"
+                          pattern="[0-9]{10}"
+                          minLength={10}
+                          maxLength={10}
                         />
                       </div>
 

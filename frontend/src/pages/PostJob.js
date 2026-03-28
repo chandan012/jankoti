@@ -215,7 +215,7 @@ Skills Required: ${skillsArray.join(', ')}`;
                   onChange={handleChange}
                   required
                   inputMode="numeric"
-                  pattern="\\d{10}"
+                  pattern="[0-9]{10}"
                   minLength={10}
                   maxLength={10}
                 />

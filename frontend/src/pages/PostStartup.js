@@ -239,6 +239,10 @@ const PostStartup = () => {
                       setFormData(prev => ({ ...prev, contactNumber: digitsOnly }));
                     }}
                     required
+                    inputMode="numeric"
+                    pattern="[0-9]{10}"
+                    minLength={10}
+                    maxLength={10}
                   />
                 </div>
               </div>

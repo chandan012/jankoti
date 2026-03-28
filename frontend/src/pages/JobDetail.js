@@ -519,6 +519,10 @@ const JobDetail = () => {
                             const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10);
                             setPhone(digitsOnly);
                           }}
+                          inputMode="numeric"
+                          pattern="[0-9]{10}"
+                          minLength={10}
+                          maxLength={10}
                         />
                       </div>
 

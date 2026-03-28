@@ -331,9 +331,9 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
               <div className="form-group">
                   <label className="form-label">Seller Contact *</label>
                   <input
-                    type="text"
+                    type="tel"
                     className="form-control"
-                    placeholder="Phone number"
+                    placeholder="10-digit mobile number"
                     name="sellerContact"
                     value={formData.sellerContact}
                     onChange={(event) => {
@@ -341,6 +341,10 @@ ${formData.sellerContact ? `- Contact: ${formData.sellerContact}` : ''}`;
                       setFormData(prev => ({ ...prev, sellerContact: digitsOnly }));
                     }}
                     required
+                    inputMode="numeric"
+                    pattern="[0-9]{10}"
+                    minLength={10}
+                    maxLength={10}
                   />
                 </div>
 
